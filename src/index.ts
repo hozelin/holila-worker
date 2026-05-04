@@ -178,7 +178,7 @@ async function fetchProducts(
   const params = new URLSearchParams();
   params.set('pagina', String(page));
   params.set('limite', String(Math.min(perPage, 100)));
-  if (categoryId) params.set('categoria_id', categoryId);
+  if (categoryId) params.set('idCategoria', categoryId);
   if (q) params.set('nome', q);
 
   const response = await fetch(
