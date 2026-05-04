@@ -1,0 +1,20 @@
+{
+  "name": "holila-catalog-worker",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker para integração com Bling ERP — expõe categorias e produtos",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "tsc",
+    "deploy": "wrangler deploy"
+  },
+  "keywords": ["bling", "catalog", "cloudflare-worker"],
+  "author": "Humberto Ozelin",
+  "license": "ISC",
+  "packageManager": "pnpm@10.13.1",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250805.0",
+    "typescript": "^5.9.2",
+    "wrangler": "^4.28.0"
+  }
+}

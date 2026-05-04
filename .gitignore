@@ -1,0 +1,21 @@
+# Dependencies
+node_modules
+pnpm-lock.yaml
+
+# Build
+dist
+*.d.ts
+.wrangler
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
