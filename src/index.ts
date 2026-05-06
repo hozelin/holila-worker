@@ -173,13 +173,15 @@ async function fetchProducts(
   page: number = 1,
   perPage: number = 20,
   categoryId?: string,
-  q?: string
+  q?: string,
+  productType?: string
 ): Promise<{ data: BlingProduct[]; total?: number }> {
   const params = new URLSearchParams();
   params.set('pagina', String(page));
   params.set('limite', String(Math.min(perPage, 100)));
   if (categoryId) params.set('idCategoria', categoryId);
   if (q) params.set('nome', q);
+  if (productType) params.set('tipoProduto', productType);
 
   const response = await fetch(
     `https://www.bling.com.br/Api/v3/produtos?${params.toString()}`,
@@ -327,7 +329,7 @@ function filterCategoryTree(
   // Find all category IDs that descend from rootId
   const validIds = new Set<string>();
 
-  // First pass: find all direct children of rootId
+  // First pass: find all descendants of rootId
   const queue = [rootId];
   while (queue.length > 0) {
     const parentId = queue.shift()!;
@@ -343,9 +345,21 @@ function filterCategoryTree(
 
   console.log('Valid category IDs:', Array.from(validIds));
 
-  // Return only categories that are in the valid set (excluding root itself)
-  const result = categories.filter(cat => validIds.has(cat.id) && cat.id !== rootId);
-  console.log('Filtered categories count:', result.length);
+  // Find all category IDs that are parents (have children)
+  const parentCategoryIds = new Set<string>();
+  categories.forEach(cat => {
+    if (cat.parentId && validIds.has(cat.parentId)) {
+      parentCategoryIds.add(cat.parentId);
+    }
+  });
+
+  console.log('Parent category IDs:', Array.from(parentCategoryIds));
+
+  // Return only leaf categories (categories that are not parents and not root)
+  const result = categories.filter(
+    cat => validIds.has(cat.id) && cat.id !== rootId && !parentCategoryIds.has(cat.id)
+  );
+  console.log('Filtered leaf categories count:', result.length);
   return result;
 }
 
@@ -460,9 +474,10 @@ async function handleProducts(env: Env, url: URL): Promise<Response> {
     const perPage = parseInt(url.searchParams.get('per_page') || '20', 10);
     const categoryId = url.searchParams.get('category_id') || undefined;
     const q = url.searchParams.get('q') || undefined;
+    const tipoProduto = url.searchParams.get('tipoProduto') || undefined;
 
     const accessToken = await getValidAccessToken(env);
-    const result = await fetchProducts(accessToken, page, perPage, categoryId, q);
+    const result = await fetchProducts(accessToken, page, perPage, categoryId, q, tipoProduto);
 
     // Filter to only parent products (idProdutoPai is null/undefined)
     const parentProducts = result.data.filter((product: any) => !product.idProdutoPai);
