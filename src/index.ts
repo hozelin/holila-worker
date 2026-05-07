@@ -58,8 +58,15 @@ async function getCategories(db: D1Database): Promise<WorkerCategory[]> {
 async function getProducts(
   db: D1Database,
   page: number = 1,
-  perPage: number = 20
+  perPage: number = 20,
+  categoryId?: string
 ): Promise<{ items: WorkerProduct[]; total: number }> {
+  // Products are only in leaf categories, not in root
+  // Must provide categoryId to get products
+  if (!categoryId) {
+    return { items: [], total: 0 };
+  }
+
   const offset = (page - 1) * perPage;
 
   const result = await db
@@ -75,12 +82,13 @@ async function getProducts(
         (SELECT url FROM product_images WHERE product_id = p.id AND variation_id IS NULL LIMIT 1) as image_url
       FROM products p
       LEFT JOIN product_categories pc ON p.id = pc.product_id
+      WHERE EXISTS (SELECT 1 FROM product_categories pc2 WHERE pc2.product_id = p.id AND pc2.category_id = ?)
       GROUP BY p.id
       ORDER BY p.name
       LIMIT ? OFFSET ?
     `
     )
-    .bind(perPage, offset)
+    .bind(categoryId, perPage, offset)
     .all<{
       id: string;
       name: string;
@@ -91,7 +99,15 @@ async function getProducts(
       image_url: string | null;
     }>();
 
-  const countResult = await db.prepare('SELECT COUNT(*) as count FROM products').first<{ count: number }>();
+  const countResult = await db
+    .prepare(
+      `
+      SELECT COUNT(DISTINCT p.id) as count FROM products p
+      WHERE EXISTS (SELECT 1 FROM product_categories pc WHERE pc.product_id = p.id AND pc.category_id = ?)
+    `
+    )
+    .bind(categoryId)
+    .first<{ count: number }>();
 
   return {
     items: (result.results || []).map(p => ({
@@ -271,8 +287,9 @@ async function handleProducts(env: Env, url: URL): Promise<Response> {
   try {
     const page = parseInt(url.searchParams.get('page') || '1', 10);
     const perPage = parseInt(url.searchParams.get('per_page') || '20', 10);
+    const categoryId = url.searchParams.get('category_id') || undefined;
 
-    const result = await getProducts(env.DB, page, perPage);
+    const result = await getProducts(env.DB, page, perPage, categoryId);
 
     const response: WorkerProductListResponse = {
       items: result.items,
@@ -370,6 +387,32 @@ export default {
         status: 405,
         headers: corsHeaders,
       });
+    }
+
+    if (pathname === '/debug') {
+      try {
+        const categoriesResult = await env.DB.prepare('SELECT COUNT(*) as count FROM categories').first<{ count: number }>();
+        const productsResult = await env.DB.prepare('SELECT COUNT(*) as count FROM products').first<{ count: number }>();
+        const variationsResult = await env.DB.prepare('SELECT COUNT(*) as count FROM product_variations').first<{ count: number }>();
+        const imagesResult = await env.DB.prepare('SELECT COUNT(*) as count FROM product_images').first<{ count: number }>();
+        const categoriesLinksResult = await env.DB.prepare('SELECT COUNT(*) as count FROM product_categories').first<{ count: number }>();
+
+        return new Response(JSON.stringify({
+          categories: categoriesResult?.count || 0,
+          products: productsResult?.count || 0,
+          variations: variationsResult?.count || 0,
+          images: imagesResult?.count || 0,
+          categoryLinks: categoriesLinksResult?.count || 0,
+        }), {
+          status: 200,
+          headers: corsHeaders,
+        });
+      } catch (error) {
+        return new Response(JSON.stringify({ error: String(error) }), {
+          status: 500,
+          headers: corsHeaders,
+        });
+      }
     }
 
     if (pathname === '/categories') {
