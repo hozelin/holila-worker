@@ -4,19 +4,16 @@ compatibility_date = "2025-08-05"
 compatibility_flags = ["nodejs_compat"]
 
 secrets_store_secrets = [
-  { binding = "BLING_CLIENT_ID", store_id = "abb00fb0ccf54bb494eea71e71a1324f", secret_name = "BLING_CLIENT_ID" },
-  { binding = "BLING_CLIENT_SECRET", store_id = "abb00fb0ccf54bb494eea71e71a1324f", secret_name = "BLING_CLIENT_SECRET" },
   { binding = "API_SECRET_TOKEN", store_id = "abb00fb0ccf54bb494eea71e71a1324f", secret_name = "HOLILA_WORKER_TOKEN" },
 ]
 
-[[kv_namespaces]]
-binding = "BLING_KV"
-id = "01417c3973164abcbcd6ccb1045f9f37"
-preview_id = "01417c3973164abcbcd6ccb1045f9f37"
-experimental_remote = true
+[[d1_databases]]
+binding = "DB"
+database_name = "holila-catalog"
+database_id = "54f15ed1-5127-4b3d-a4e2-e15fe33bd587"
 
 [observability.logs]
 enabled = true
 
 [vars]
-ALLOWED_ORIGINS = "holila://app,https://www.bling.com.br,https://bling.com.br,https://api.bling.com.br"
+ALLOWED_ORIGINS = "holila://app,http://localhost:3000,http://localhost:8787"
