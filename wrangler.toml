@@ -4,8 +4,14 @@ compatibility_date = "2025-08-05"
 compatibility_flags = ["nodejs_compat"]
 
 secrets_store_secrets = [
+  { binding = "BLING_CLIENT_ID", store_id = "abb00fb0ccf54bb494eea71e71a1324f", secret_name = "BLING_CLIENT_ID" },
+  { binding = "BLING_CLIENT_SECRET", store_id = "abb00fb0ccf54bb494eea71e71a1324f", secret_name = "BLING_CLIENT_SECRET" },
   { binding = "API_SECRET_TOKEN", store_id = "abb00fb0ccf54bb494eea71e71a1324f", secret_name = "HOLILA_WORKER_TOKEN" },
 ]
+
+[[kv_namespaces]]
+binding = "BLING_KV"
+id = "01417c3973164abcbcd6ccb1045f9f37"
 
 [[d1_databases]]
 binding = "DB"

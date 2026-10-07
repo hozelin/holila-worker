@@ -1,5 +1,8 @@
 export interface Env {
   DB: D1Database;
+  BLING_KV: KVNamespace;
+  BLING_CLIENT_ID: any;
+  BLING_CLIENT_SECRET: any;
   API_SECRET_TOKEN: any;
   ALLOWED_ORIGINS: string;
 }
@@ -334,6 +337,96 @@ async function handleProductDetail(env: Env, productId: string): Promise<Respons
   }
 }
 
+// ========== Bling OAuth (bootstrap do token) ==========
+
+interface TokenData {
+  access_token: string;
+  refresh_token: string;
+  expires_at: number;
+}
+
+const TOKEN_KEY = 'bling_tokens';
+
+async function saveTokens(env: Env, tokens: TokenData): Promise<void> {
+  await env.BLING_KV.put(TOKEN_KEY, JSON.stringify(tokens));
+}
+
+async function handleAuthCallback(env: Env, url: URL): Promise<Response> {
+  const code = url.searchParams.get('code');
+  const state = url.searchParams.get('state');
+
+  if (!code) {
+    return new Response(
+      JSON.stringify({ error: 'Missing authorization code' }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  try {
+    const clientId = await env.BLING_CLIENT_ID.get();
+    const clientSecret = await env.BLING_CLIENT_SECRET.get();
+    const callbackUrl = new URL('/auth/callback', url.origin).toString();
+
+    const body = new URLSearchParams();
+    body.set('grant_type', 'authorization_code');
+    body.set('code', code);
+    body.set('redirect_uri', callbackUrl);
+
+    const credentials = `${clientId}:${clientSecret}`;
+    const encodedCredentials = btoa(credentials);
+
+    const response = await fetch('https://api.bling.com.br/Api/v3/oauth/token', {
+      method: 'POST',
+      body,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Accept: '1.0',
+        'enable-jwt': '1',
+        Authorization: `Basic ${encodedCredentials}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      return new Response(
+        JSON.stringify({
+          error: `Token exchange failed: ${response.statusText}`,
+          details: errorBody,
+        }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const json = (await response.json()) as {
+      access_token: string;
+      refresh_token: string;
+      expires_in: number;
+    };
+
+    const tokens: TokenData = {
+      access_token: json.access_token,
+      refresh_token: json.refresh_token,
+      expires_at: Date.now() + json.expires_in * 1000 - 60000,
+    };
+
+    await saveTokens(env, tokens);
+
+    return new Response(
+      JSON.stringify({
+        message: 'Token salvo com sucesso! O Worker está pronto para usar.',
+        expiresAt: new Date(tokens.expires_at).toISOString(),
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
+  } catch (err: any) {
+    console.error('Auth callback error:', err);
+    return new Response(
+      JSON.stringify({ error: err.message || 'Authentication failed' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
 // ========== Main Handler ==========
 
 export default {
@@ -344,6 +437,11 @@ export default {
     const allowedOrigins = (env.ALLOWED_ORIGINS || '')
       .split(',')
       .map(o => o.trim());
+
+    // Auth callback endpoint (sem Bearer: o Bling redireciona o navegador para cá)
+    if (pathname === '/auth/callback' && req.method === 'GET') {
+      return handleAuthCallback(env, url);
+    }
 
     // Auth validation for catalog endpoints
     const authHeader = req.headers.get('Authorization');
