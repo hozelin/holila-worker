@@ -111,6 +111,7 @@ async function refreshTokens(env: Env, refresh_token: string): Promise<TokenData
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
       Accept: '1.0',
+      'enable-jwt': '1',
       Authorization: `Basic ${encodedCredentials}`,
     },
   });
@@ -152,11 +153,12 @@ async function getValidAccessToken(env: Env): Promise<string> {
 // ========== Bling API Calls ==========
 
 async function fetchCategories(accessToken: string): Promise<BlingCategory[]> {
-  const response = await fetch('https://www.bling.com.br/Api/v3/categorias/produtos', {
+  const response = await fetch('https://api.bling.com.br/Api/v3/categorias/produtos', {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${accessToken}`,
       Accept: 'application/json',
+      'enable-jwt': '1',
     },
   });
 
@@ -182,12 +184,13 @@ async function fetchProducts(
   if (q) params.set('nome', q);
 
   const response = await fetch(
-    `https://www.bling.com.br/Api/v3/produtos?${params.toString()}`,
+    `https://api.bling.com.br/Api/v3/produtos?${params.toString()}`,
     {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${accessToken}`,
         Accept: 'application/json',
+        'enable-jwt': '1',
       },
     }
   );
@@ -201,11 +204,12 @@ async function fetchProducts(
 }
 
 async function fetchProductDetail(accessToken: string, productId: string): Promise<BlingProduct> {
-  const response = await fetch(`https://www.bling.com.br/Api/v3/produtos/${productId}`, {
+  const response = await fetch(`https://api.bling.com.br/Api/v3/produtos/${productId}`, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${accessToken}`,
       Accept: 'application/json',
+      'enable-jwt': '1',
     },
   });
 
@@ -365,7 +369,7 @@ async function handleAuthCallback(env: Env, url: URL): Promise<Response> {
   try {
     const clientId = await env.BLING_CLIENT_ID.get();
     const clientSecret = await env.BLING_CLIENT_SECRET.get();
-    const callbackUrl = 'https://holila-catalog-worker.contato-274.workers.dev/auth/callback';
+    const callbackUrl = new URL('/auth/callback', url.origin).toString();
 
     const body = new URLSearchParams();
     body.set('grant_type', 'authorization_code');
@@ -381,6 +385,7 @@ async function handleAuthCallback(env: Env, url: URL): Promise<Response> {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         Accept: '1.0',
+        'enable-jwt': '1',
         Authorization: `Basic ${encodedCredentials}`,
       },
     });
